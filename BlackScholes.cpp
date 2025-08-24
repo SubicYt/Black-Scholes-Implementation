@@ -20,7 +20,7 @@ struct Contract {
 		risk_free_int = risk;
 		isCallOption = is; 
 	}
-
+	 
 };
 
 struct Greeks {
@@ -156,16 +156,16 @@ int main() {
 		std::cout << "\n";
 	}
 
-
 	// Order of output OptionType,Price, Delta,Gamma,Vega,Theta,Rho
 	std::cout << "\nYou entered " << contracts.size() << " contract(s).\n";
 	for (int i = 0; i < contracts.size(); ++i) {
 		Greeks greekSymbol = calculateGreeks(contracts[i]);
 		if (contracts[i].isCallOption) {
-			outputFile << "Call" << "\n" << PriceBlackScholesModel(contracts[i]) << "\n" <<
-				greekSymbol.delta << "\n";
+			outputFile << "Call" << ","<< PriceBlackScholesModel(contracts[i]) << "," << greekSymbol.delta << "," << 
+			greekSymbol.gamma << "," << greekSymbol.vega << "," << greekSymbol.theta << "," << greekSymbol.rho << "\n";
 		}
 	}
 
+	outputFile.close();
 	return 0; 
 } 
