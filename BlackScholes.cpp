@@ -2,6 +2,7 @@
 #include<iostream>
 #include<cmath>
 #include<fstream>
+#include<vector>
 
 struct Contract {
 	double time_to_mature;
@@ -113,10 +114,58 @@ Greeks calculateGreeks(Contract& params) {
 	}
 	return greekList; 
 }
+
+
 int main() {
-	std::ofstream file("black_scholes_output.csv");
-	// Write header row
-	double S = 100.0, K = 100.0, T = 1.0, r = 0.05, sigma = 0.2;
-	Contract Callparams = Contract(S, K, T, r, sigma, true);
-	return 0;
+	std::ofstream outputFile("black_scholes_output.csv");
+	//write file header
+	outputFile << "OptionType,Price, Delta,Gamma,Vega,Theta,Rho\n";
+	
+	std::vector<Contract> contracts;
+	char choice = 'y';
+
+	while (choice == 'y' || choice == 'Y') {
+		double ttm, sp, current, vol, risk;
+		char type;
+		bool isCall;
+		//maturity
+		std::cout << "Enter time to maturity (years): ";
+		std::cin >> ttm;
+		//strike price
+		std::cout << "Enter strike price: ";
+		std::cin >> sp;
+		//current price
+		std::cout << "Enter current price: ";
+		std::cin >> current;
+		//volitility
+		std::cout << "Enter volatility (as decimal, e.g., 0.2 for 20%): ";
+		std::cin >> vol;
+		//risk free interest rate
+		std::cout << "Enter risk-free interest rate (as decimal, e.g., 0.05 for 5%): ";
+		std::cin >> risk;
+		//call or put option
+		std::cout << "Is this a call option? (y/n): ";
+		std::cin >> type;
+
+		isCall = (type == 'y' || type == 'Y');
+
+		contracts.emplace_back(ttm, sp, current, vol, risk, isCall);
+
+		std::cout << "Add another contract? (y/n): ";
+		std::cin >> choice;
+		std::cout << "\n";
+	}
+
+
+	// Order of output OptionType,Price, Delta,Gamma,Vega,Theta,Rho
+	std::cout << "\nYou entered " << contracts.size() << " contract(s).\n";
+	for (int i = 0; i < contracts.size(); ++i) {
+		Greeks greekSymbol = calculateGreeks(contracts[i]);
+		if (contracts[i].isCallOption) {
+			outputFile << "Call" << "\n" << PriceBlackScholesModel(contracts[i]) << "\n" <<
+				greekSymbol.delta << "\n";
+		}
+	}
+
+	return 0; 
 } 
