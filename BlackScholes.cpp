@@ -4,28 +4,30 @@
 #include<fstream>
 
 struct Contract {
-	float time_to_mature;
-	float strike_price;
-	float current_price;
-	float volatility;
-	float risk_free_int;
+	double time_to_mature;
+	double strike_price;
+	double current_price;
+	double volatility;
+	double risk_free_int;
+	bool isCallOption;
 
-	Contract(float ttm, float sp, float current, float vol, float risk) {
+	Contract(double ttm, double sp, double current, double vol, double risk, bool is) {
 		time_to_mature = ttm;
 		strike_price = sp;
 		current_price = current;
 		volatility = vol;
 		risk_free_int = risk;
+		isCallOption = is; 
 	}
 
 };
 
 struct Greeks {
-	float delta;
-	float gamma;
-	float vega;
-	float theta;
-	float rho;
+	double delta;
+	double gamma;
+	double vega;
+	double theta;
+	double rho;
 };
 
 //standard norm. probability density function
@@ -46,11 +48,11 @@ double norm_cdf(const double& x) {
 	}
 }
 
-static float Getd1(Contract& params) {
-	float x;
-	float add1 = std::log(params.current_price / params.strike_price);
-	float add2 = (params.risk_free_int + (0.5 * ((std::pow(params.volatility, 2.0)))) * params.time_to_mature);
-	float divisor = params.volatility * (std::sqrt(params.time_to_mature));
+static double Getd1(Contract& params) {
+	double x;
+	double add1 = std::log(params.current_price / params.strike_price);
+	double add2 = (params.risk_free_int + (0.5 * ((std::pow(params.volatility, 2.0)))) * params.time_to_mature);
+	double divisor = params.volatility * (std::sqrt(params.time_to_mature));
 	return x = (add1 + add2) / divisor;
 }
 
@@ -59,16 +61,16 @@ static float Getd2(Contract& params) {
 	return firstVar - params.volatility * (std::sqrt(params.time_to_mature));
 }
 
-double PriceBlackScholesModel(Contract& params, bool isCallOption) {
-	float d1;
-	float d2;
-	float eRT = std::pow(M_E, (-params.risk_free_int * params.time_to_mature)); // Variable used to represent (e^-rt)
+double PriceBlackScholesModel(Contract& params) {
+	double d1;
+	double d2;
+	double eRT = std::pow(M_E, (-params.risk_free_int * params.time_to_mature)); // Variable used to represent (e^-rt)
 
 	d1 = Getd1(params);
 	d2 = Getd2(params);
 
 	//If the option is a call use C = N(d1)St - N(d2)Ke^-rt ---> Call option price. 
-	if (isCallOption) {
+	if (params.isCallOption) {
 		float call_price = norm_cdf(d1) * params.current_price - norm_cdf(d2) * params.strike_price * eRT;
 		return call_price;
 	}
@@ -79,20 +81,42 @@ double PriceBlackScholesModel(Contract& params, bool isCallOption) {
 	}
 }
 
-Greeks calculateGreeks(Contract& params, bool isCallOption) {
+Greeks calculateGreeks(Contract& params) {
 	Greeks greekList;
-	float d1 = Getd1(params);
-	float d2 = Getd2(params);
+	double d1 = Getd1(params);
+	double d2 = Getd2(params);
 
-	if (isCallOption){
-		greekList.delta = std::pow(M_E, (-params.risk_free_int * params.time_to_mature)) * norm_cdf(d1);
-		greekList.gamma = (norm_pdf(d1) * std::pow(M_E, (-params.risk_free_int * params.time_to_mature))) /
-			(params.current_price * params.volatility * std::sqrt(params.time_to_mature));
+	if (params.isCallOption) {
+		greekList.delta = norm_cdf(d1);
+		greekList.gamma = (norm_pdf(d1) / (params.current_price * params.volatility * std::sqrt(params.time_to_mature)));
+		greekList.vega = params.current_price * norm_pdf(d1) * std::sqrt(params.time_to_mature);
+
+		//Calulations for variables in theta. 
+		double CallThetaVar = -(params.strike_price * norm_pdf(d1) * params.volatility) / (2 * std::sqrt(params.time_to_mature));
+		double CallThetaVar2 = params.risk_free_int * params.strike_price * (std::pow(M_E, -params.risk_free_int * params.time_to_mature)) * norm_cdf(d2);
+
+		greekList.theta = CallThetaVar - CallThetaVar2;
+
+		greekList.rho = params.strike_price * params.time_to_mature * (std::pow(M_E, -params.risk_free_int * params.time_to_mature)) * norm_cdf(d2);
 	}
 	else {
+		greekList.delta = norm_cdf(d1) - 1;
+		greekList.gamma = (norm_pdf(d1) / (params.current_price * params.volatility * std::sqrt(params.time_to_mature)));
+		greekList.vega = params.current_price * norm_pdf(d1) * std::sqrt(params.time_to_mature);
 
+		double PutThetaVar = -(params.strike_price * norm_pdf(d1) * params.volatility) / std::sqrt((2 * params.time_to_mature));
+		double PutThetaVar2 = params.risk_free_int * params.strike_price * (std::pow(M_E, -params.risk_free_int * params.time_to_mature)) * norm_cdf(-d2);
+
+		greekList.theta = PutThetaVar + PutThetaVar2;
+
+		greekList.rho = -params.strike_price * params.time_to_mature * (std::pow(M_E, -params.risk_free_int * params.time_to_mature)) * norm_cdf(-d2);
 	}
+	return greekList; 
 }
 int main() {
-	//implement user inputs and csv file output. 
-}
+	std::ofstream file("black_scholes_output.csv");
+	// Write header row
+	double S = 100.0, K = 100.0, T = 1.0, r = 0.05, sigma = 0.2;
+	Contract Callparams = Contract(S, K, T, r, sigma, true);
+	return 0;
+} 
