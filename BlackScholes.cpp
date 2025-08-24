@@ -45,46 +45,54 @@ double norm_cdf(const double& x) {
 		return 1.0 - norm_cdf(-x);
 	}
 }
-/*
-* float add1 = std::log(params.current_price / params.strike_price);
-	float add2 = (params.risk_free_int + (0.5 * ((std::pow(params.volatility, 2.0)))) * params.time_to_mature);
-	float divisor = params.volatility * (std::sqrt(params.time_to_mature));
-	return d1 = (add1 + add2) / divisor;
-*/
 
-double PriceBlackScholesModel(Contract& params, bool isCallOption) {
-	
-	float d1;
-	float d2;
-	float eRT; //See Call Option if statement for description.
-
-	//Calculate d1 value to be passed To CDF of normal distribution func.
+static float Getd1(Contract& params) {
+	float x;
 	float add1 = std::log(params.current_price / params.strike_price);
 	float add2 = (params.risk_free_int + (0.5 * ((std::pow(params.volatility, 2.0)))) * params.time_to_mature);
 	float divisor = params.volatility * (std::sqrt(params.time_to_mature));
-	d1 = (add1 + add2) / divisor;
+	return x = (add1 + add2) / divisor;
+}
 
-	//Calculate d2 value to be passed to CDF norm distribution func.
-	d2 = d1 - (params.volatility * (std::sqrt(params.time_to_mature)));
-	
+static float Getd2(Contract& params) {
+	float firstVar = Getd1(params);
+	return firstVar - params.volatility * (std::sqrt(params.time_to_mature));
+}
+
+double PriceBlackScholesModel(Contract& params, bool isCallOption) {
+	float d1;
+	float d2;
+	float eRT = std::pow(M_E, (-params.risk_free_int * params.time_to_mature)); // Variable used to represent (e^-rt)
+
+	d1 = Getd1(params);
+	d2 = Getd2(params);
+
 	//If the option is a call use C = N(d1)St - N(d2)Ke^-rt ---> Call option price. 
 	if (isCallOption) {
-		eRT = std::pow(M_E, (-params.risk_free_int * params.time_to_mature)); // Variable used to represent (e^-rt)
-	    float call_price = norm_cdf(d1) * params.current_price - norm_cdf(d2) * params.strike_price * eRT;
+		float call_price = norm_cdf(d1) * params.current_price - norm_cdf(d2) * params.strike_price * eRT;
 		return call_price;
 	}
 	else { // compute for put option
 		float put_price = params.strike_price * eRT * norm_cdf(-d2) - params.current_price * norm_cdf(-d1);
 		return put_price;
+
 	}
-	
 }
 
-Greeks calculateGreeks(const Contract& params, bool isCallOption) {
-	//implement later. 
+Greeks calculateGreeks(Contract& params, bool isCallOption) {
+	Greeks greekList;
+	float d1 = Getd1(params);
+	float d2 = Getd2(params);
+
+	if (isCallOption){
+		greekList.delta = std::pow(M_E, (-params.risk_free_int * params.time_to_mature)) * norm_cdf(d1);
+		greekList.gamma = (norm_pdf(d1) * std::pow(M_E, (-params.risk_free_int * params.time_to_mature))) /
+			(params.current_price * params.volatility * std::sqrt(params.time_to_mature));
+	}
+	else {
+
+	}
 }
-
-
 int main() {
 	//implement user inputs and csv file output. 
 }
